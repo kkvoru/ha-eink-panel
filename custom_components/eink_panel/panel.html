@@ -443,12 +443,7 @@
               document.getElementById("lock-toggle").disabled = false;
               toggleStateClass("");
               setText("lock-toggle-text", normalToggleText());
-              setText(
-                "message",
-                lockAction === "unlock"
-                  ? "Нажмите, чтобы открыть"
-                  : "Нажмите, чтобы закрыть"
-              );
+              setText("message", "");
             }
           }
           setTimeout(fitPage, 50);
