@@ -205,14 +205,22 @@
       font-weight: bold;
     }
     #updated { margin-top: 1px; font-size: 12px; }
-    .vacuum-heading { font-size: 21px; margin: 4px 0; }
-    #vacuum-status { font-size: 18px; }
-    .vacuum-buttons { width: 100%; table-layout: fixed; border-spacing: 4px 0; }
-    .vacuum-buttons button {
-      width: 100%; min-height: 42px; padding: 5px 1px;
-      border: 2px solid #000; background: #fff; color: #000;
-      font-family: Arial, sans-serif; font-size: 18px; font-weight: bold;
+    .vacuum-row { display: table; width: 100%; margin-top: 3px; }
+    .vacuum-heading {
+      display: table-cell; vertical-align: middle; text-align: left;
+      font-size: 24px; font-weight: bold;
     }
+    #vacuum-status { display: block; font-size: 15px; font-weight: normal; }
+    .vacuum-buttons {
+      display: table-cell; vertical-align: middle; text-align: right;
+      white-space: nowrap;
+    }
+    .vacuum-buttons button {
+      width: 48px; height: 44px; padding: 6px; margin-left: 5px;
+      border: 2px solid #000; background: #fff; color: #000;
+      vertical-align: middle;
+    }
+    .vacuum-buttons svg { display: block; width: 28px; height: 28px; margin: auto; }
     .vacuum-buttons button:disabled { color: #777; border-color: #777; }
     #vacuum-message { min-height: 17px; font-size: 15px; }
     .error { border: 4px solid #000; padding: 8px; }
@@ -307,13 +315,15 @@
     </div>
     <div id="vacuum-panel" style="display: none;">
       <div class="line"></div>
-      <div class="vacuum-heading"><strong>Пылесос</strong> · <span id="vacuum-status">Получение состояния...</span></div>
-      <table class="vacuum-buttons"><tr>
-        <td><button id="vacuum-start" onclick="vacuumPressed('start')" disabled>Начать</button></td>
-        <td><button id="vacuum-pause" onclick="vacuumPressed('pause')" disabled>Пауза</button></td>
-        <td><button id="vacuum-stop" onclick="vacuumPressed('stop')" disabled>Стоп</button></td>
-        <td><button id="vacuum-return_to_base" onclick="vacuumPressed('return_to_base')" disabled>На базу</button></td>
-      </tr></table>
+      <div class="vacuum-row">
+        <div class="vacuum-heading">Пылесос<span id="vacuum-status">Получение состояния...</span></div>
+        <div class="vacuum-buttons">
+          <button id="vacuum-start" onclick="vacuumPressed('start')" title="Начать уборку" aria-label="Начать уборку" disabled><svg viewBox="0 0 28 28" aria-hidden="true" focusable="false"><path d="M8 4L24 14L8 24Z" fill="currentColor"/></svg></button>
+          <button id="vacuum-pause" onclick="vacuumPressed('pause')" title="Пауза" aria-label="Пауза" style="display: none;" disabled><svg viewBox="0 0 28 28" aria-hidden="true" focusable="false"><path d="M6 4H12V24H6ZM17 4H23V24H17Z" fill="currentColor"/></svg></button>
+          <button id="vacuum-stop" onclick="vacuumPressed('stop')" title="Стоп" aria-label="Стоп" disabled><svg viewBox="0 0 28 28" aria-hidden="true" focusable="false"><rect x="5" y="5" width="18" height="18" fill="currentColor"/></svg></button>
+          <button id="vacuum-return_to_base" onclick="vacuumPressed('return_to_base')" title="На базу" aria-label="На базу" disabled><svg viewBox="0 0 28 28" aria-hidden="true" focusable="false"><path d="M3 13L14 3L25 13M6 11V25H22V11M11 25V17H17V25" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/></svg></button>
+        </div>
+      </div>
       <div id="vacuum-message" aria-live="polite"></div>
     </div>
     <div id="message">Ожидание данных</div>
@@ -330,6 +340,7 @@
     var vacuumLoading = false;
     var vacuumRevision = 0;
     var vacuumActions = [];
+    var vacuumState = "unknown";
 
     function setText(id, value) {
       var element = document.getElementById(id);
@@ -395,6 +406,8 @@
     }
 
     function updateVacuumButtons() {
+      document.getElementById("vacuum-start").style.display = vacuumState === "cleaning" ? "none" : "inline-block";
+      document.getElementById("vacuum-pause").style.display = vacuumState === "cleaning" ? "inline-block" : "none";
       var actions = ["start", "pause", "stop", "return_to_base"];
       var i, j, supported;
       for (i = 0; i < actions.length; i++) {
@@ -418,9 +431,11 @@
           var data = JSON.parse(text);
           document.getElementById("vacuum-panel").style.display = data.configured ? "block" : "none";
           vacuumActions = data.available ? data.actions : [];
+          vacuumState = data.state;
           setText("vacuum-status", data.label);
         } catch (error) {
           vacuumActions = [];
+          vacuumState = "unavailable";
           setText("vacuum-status", "Нет связи");
         }
         updateVacuumButtons();
@@ -430,7 +445,7 @@
 
     function vacuumPressed(action) {
       var button = document.getElementById("vacuum-" + action);
-      if (vacuumPending || !button || button.disabled) { return; }
+      if (vacuumPending || !button || button.disabled || button.style.display === "none") { return; }
       vacuumPending = true;
       vacuumRevision++;
       updateVacuumButtons();
