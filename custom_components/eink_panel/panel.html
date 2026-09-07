@@ -180,8 +180,16 @@
     }
     #lock-toggle.open .toggle-track { background: #aaa; }
     #lock-toggle.open .toggle-knob { left: 44px; }
-    #lock-toggle.armed .toggle-track { background: #000; }
-    #lock-toggle.armed .toggle-knob { background: #fff; }
+    .lock-icon {
+      display: inline-block;
+      width: 30px;
+      height: 36px;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+    .lock-icon .lock-open, .lock-icon .lock-closed { display: none; }
+    #lock-toggle.open .lock-open, #lock-toggle.closed .lock-closed { display: inline; }
+    #lock-toggle.open .lock-unknown, #lock-toggle.closed .lock-unknown { display: none; }
     #lock-toggle.unavailable { color: #777; }
     #lock-toggle-text {
       display: inline-block;
@@ -274,7 +282,14 @@
     <div class="lock-row">
       <div class="lock-title">__LOCK_LABEL_HTML__</div>
       <div class="lock-control">
-        <button id="lock-toggle" class="unavailable" onclick="lockPressed()">
+        <button id="lock-toggle" class="unavailable" onclick="lockPressed()" disabled>
+          <svg class="lock-icon" viewBox="0 0 32 36" aria-hidden="true" focusable="false">
+            <g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <g class="lock-closed"><path d="M9 16V10a7 7 0 0 1 14 0v6"/><rect x="5" y="16" width="22" height="17" rx="2"/><path d="M16 23v4"/></g>
+              <g class="lock-open"><path d="M9 16V10a7 7 0 0 1 14 0"/><rect x="5" y="16" width="22" height="17" rx="2"/><path d="M16 23v4"/></g>
+              <g class="lock-unknown"><circle cx="16" cy="18" r="13"/><path d="M12 14a4 4 0 1 1 6 3.5c-2 1-2 2-2 3M16 26h0"/></g>
+            </g>
+          </svg>
           <span class="toggle-track"><span class="toggle-knob"></span></span>
           <span id="lock-toggle-text">Получение состояния...</span>
         </button>
@@ -288,8 +303,7 @@
   <script>
     var panelKey = __PANEL_KEY_JSON__;
     var lockLabel = __LOCK_LABEL_JSON__;
-    var armedUntil = 0;
-    var armTimer = null;
+    var commandPending = false;
     var lockAction = "unavailable";
 
     function setText(id, value) {
@@ -415,25 +429,27 @@
             data.indoor.humidity.value + data.indoor.humidity.unit
           );
           showForecast(data.forecast);
-          lockAction = data.lock.action;
-
           var now = new Date();
           setText("updated", "Обновлено в " + pad(now.getHours()) + ":" + pad(now.getMinutes()));
-          if (!data.lock.available) {
-            document.getElementById("lock-toggle").disabled = true;
-            toggleStateClass("");
-            setText("lock-toggle-text", "Недоступен");
-            setText("message", "Домофон недоступен");
-          } else if (armedUntil === 0) {
-            document.getElementById("lock-toggle").disabled = false;
-            toggleStateClass("");
-            setText("lock-toggle-text", normalToggleText());
-            setText(
-              "message",
-              lockAction === "unlock"
-                ? "Для открытия потребуется два нажатия"
-                : "Нажмите, чтобы закрыть"
-            );
+          if (!commandPending) {
+            lockAction = data.lock.available ? data.lock.action : "unavailable";
+
+            if (!data.lock.available) {
+              document.getElementById("lock-toggle").disabled = true;
+              toggleStateClass("");
+              setText("lock-toggle-text", "Недоступен");
+              setText("message", "Домофон недоступен");
+            } else {
+              document.getElementById("lock-toggle").disabled = false;
+              toggleStateClass("");
+              setText("lock-toggle-text", normalToggleText());
+              setText(
+                "message",
+                lockAction === "unlock"
+                  ? "Нажмите, чтобы открыть"
+                  : "Нажмите, чтобы закрыть"
+              );
+            }
           }
           setTimeout(fitPage, 50);
         } catch (error) {
@@ -442,23 +458,8 @@
       });
     }
 
-    function resetUnlock() {
-      armedUntil = 0;
-      toggleStateClass("");
-      setText("lock-toggle-text", normalToggleText());
-      setText(
-        "message",
-        lockAction === "unlock"
-          ? "Для открытия потребуется два нажатия"
-          : "Нажмите, чтобы закрыть"
-      );
-    }
-
     function sendLockCommand() {
-      if (armTimer) {
-        clearTimeout(armTimer);
-      }
-      armedUntil = 0;
+      commandPending = true;
       document.getElementById("lock-toggle").disabled = true;
       toggleStateClass("busy");
       setText(
@@ -476,30 +477,16 @@
           }
         } catch (error) {}
         setText("message", message);
-        setTimeout(loadStatus, 1500);
+        setTimeout(function () {
+          commandPending = false;
+          loadStatus();
+        }, 1500);
       });
     }
 
     function lockPressed() {
-      if (lockAction === "unavailable") {
-        return;
-      }
-
-      if (lockAction === "lock") {
-        sendLockCommand();
-        return;
-      }
-
-      var now = new Date().getTime();
-      if (now > armedUntil) {
-        armedUntil = now + 5000;
-        toggleStateClass("armed");
-        setText("lock-toggle-text", "Ещё раз");
-        setText("message", "Подтверждение действует 5 секунд");
-        if (armTimer) {
-          clearTimeout(armTimer);
-        }
-        armTimer = setTimeout(resetUnlock, 5000);
+      if (commandPending || document.getElementById("lock-toggle").disabled ||
+          (lockAction !== "unlock" && lockAction !== "lock")) {
         return;
       }
       sendLockCommand();
