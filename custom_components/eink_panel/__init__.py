@@ -367,6 +367,10 @@ class EInkPanelView(EInkBaseView):
         template = await self.hass.async_add_executor_job(
             template_path.read_text, "utf-8"
         )
+        manifest_text = await self.hass.async_add_executor_job(
+            Path(__file__).with_name("manifest.json").read_text, "utf-8"
+        )
+        version = json.loads(manifest_text)["version"]
         html = template.replace(
             "__PANEL_KEY_JSON__", json.dumps(self.panel_config.access_key)
         ).replace(
@@ -374,6 +378,8 @@ class EInkPanelView(EInkBaseView):
         ).replace(
             "__LOCK_LABEL_JSON__",
             json.dumps(self.panel_config.lock_label, ensure_ascii=False),
+        ).replace(
+            "__PROJECT_VERSION_HTML__", escape(version)
         )
 
         return web.Response(
