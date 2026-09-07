@@ -5,3 +5,5 @@ eink_panel:
   humidity_entity: sensor.room_humidity
   lock_entity: lock.your_lock
   lock_label: "Домофон"
+  # Необязательно: управление пылесосом на главном экране.
+  vacuum_entity: vacuum.your_vacuum

@@ -16,6 +16,7 @@ from aiohttp import web
 import voluptuous as vol
 
 from homeassistant.components.http import HomeAssistantView
+from homeassistant.components.vacuum import VacuumEntityFeature
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -31,6 +32,19 @@ CONF_TEMPERATURE_ENTITY = "temperature_entity"
 CONF_HUMIDITY_ENTITY = "humidity_entity"
 CONF_LOCK_ENTITY = "lock_entity"
 CONF_LOCK_LABEL = "lock_label"
+CONF_VACUUM_ENTITY = "vacuum_entity"
+
+VACUUM_ACTIONS = {
+    "start": VacuumEntityFeature.START,
+    "pause": VacuumEntityFeature.PAUSE,
+    "stop": VacuumEntityFeature.STOP,
+    "return_to_base": VacuumEntityFeature.RETURN_HOME,
+}
+VACUUM_STATES = {
+    "docked": "На базе", "cleaning": "Уборка", "paused": "Пауза",
+    "idle": "Ожидание", "returning": "Возвращается на базу",
+    "error": "Ошибка", "unavailable": "Недоступен", "unknown": "Нет данных",
+}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,6 +81,9 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Required(CONF_HUMIDITY_ENTITY): cv.entity_id,
                 vol.Required(CONF_LOCK_ENTITY): cv.entity_id,
                 vol.Optional(CONF_LOCK_LABEL, default="Открыть домофон"): cv.string,
+                vol.Optional(CONF_VACUUM_ENTITY): vol.All(
+                    cv.entity_id, vol.Match(r"^vacuum\."),
+                ),
             }
         )
     },
@@ -292,6 +309,7 @@ class PanelConfig:
         self.humidity_entity = raw[CONF_HUMIDITY_ENTITY]
         self.lock_entity = raw[CONF_LOCK_ENTITY]
         self.lock_label = raw[CONF_LOCK_LABEL]
+        self.vacuum_entity = raw.get(CONF_VACUUM_ENTITY)
         self.icon_cache: dict[str, tuple[float, bytes, str]] = {}
 
     async def fetch_icon(self, hass: HomeAssistant, url: str) -> tuple[bytes, str] | None:
@@ -577,6 +595,68 @@ class EInkWeatherIconView(EInkBaseView):
         )
 
 
+class EInkVacuumView(EInkBaseView):
+    """Read and control only the configured vacuum using an action allowlist."""
+
+    url = "/eink-panel/vacuum"
+    name = "api:eink_panel:vacuum"
+
+    def vacuum_status(self) -> dict[str, Any]:
+        entity = self.panel_config.vacuum_entity
+        state = self.hass.states.get(entity) if entity else None
+        value = state.state if state is not None else STATE_UNAVAILABLE
+        available = state is not None and value not in (
+            STATE_UNKNOWN, STATE_UNAVAILABLE,
+        )
+        features = int(state.attributes.get("supported_features", 0)) if state else 0
+        return {
+            "configured": bool(entity),
+            "available": available,
+            "state": value,
+            "label": VACUUM_STATES.get(value, value),
+            "actions": [
+                action for action, feature in VACUUM_ACTIONS.items()
+                if available and features & feature
+            ],
+        }
+
+    async def get(self, request: web.Request) -> web.Response:
+        if not self.authorized(request):
+            return self.forbidden()
+        return web.json_response(
+            self.vacuum_status(), headers={"Cache-Control": "no-store"},
+        )
+
+    async def post(self, request: web.Request) -> web.Response:
+        if not self.authorized(request):
+            return self.forbidden()
+        action = request.query.get("action", "")
+        if action not in VACUUM_ACTIONS:
+            return web.json_response(
+                {"ok": False, "message": "Неизвестная команда"}, status=400,
+            )
+        state = self.vacuum_status()
+        if not state["available"]:
+            return web.json_response(
+                {"ok": False, "message": "Пылесос недоступен"}, status=503,
+            )
+        if action not in state["actions"]:
+            return web.json_response(
+                {"ok": False, "message": "Команда не поддерживается"}, status=409,
+            )
+        try:
+            await self.hass.services.async_call(
+                "vacuum", action, {}, blocking=True,
+                target={"entity_id": self.panel_config.vacuum_entity},
+            )
+        except Exception:  # noqa: BLE001 - return a safe UI error
+            _LOGGER.exception("Failed to control configured vacuum")
+            return web.json_response(
+                {"ok": False, "message": "Команда не выполнена"}, status=500,
+            )
+        return web.json_response({"ok": True, "message": "Команда отправлена"})
+
+
 class EInkLockView(EInkBaseView):
     """Toggle the configured intercom lock according to its current state."""
 
@@ -639,6 +719,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.http.register_view(EInkStatusView(hass, panel_config))
     hass.http.register_view(EInkWeatherIconView(hass, panel_config))
     hass.http.register_view(EInkLockView(hass, panel_config))
+    hass.http.register_view(EInkVacuumView(hass, panel_config))
 
     _LOGGER.info("E-Ink Panel is available at /eink-panel")
     return True

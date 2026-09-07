@@ -205,6 +205,16 @@
       font-weight: bold;
     }
     #updated { margin-top: 1px; font-size: 12px; }
+    .vacuum-heading { font-size: 21px; margin: 4px 0; }
+    #vacuum-status { font-size: 18px; }
+    .vacuum-buttons { width: 100%; table-layout: fixed; border-spacing: 4px 0; }
+    .vacuum-buttons button {
+      width: 100%; min-height: 42px; padding: 5px 1px;
+      border: 2px solid #000; background: #fff; color: #000;
+      font-family: Arial, sans-serif; font-size: 18px; font-weight: bold;
+    }
+    .vacuum-buttons button:disabled { color: #777; border-color: #777; }
+    #vacuum-message { min-height: 17px; font-size: 15px; }
     .error { border: 4px solid #000; padding: 8px; }
   </style>
 </head>
@@ -295,6 +305,17 @@
         </button>
       </div>
     </div>
+    <div id="vacuum-panel" style="display: none;">
+      <div class="line"></div>
+      <div class="vacuum-heading"><strong>Пылесос</strong> · <span id="vacuum-status">Получение состояния...</span></div>
+      <table class="vacuum-buttons"><tr>
+        <td><button id="vacuum-start" onclick="vacuumPressed('start')" disabled>Начать</button></td>
+        <td><button id="vacuum-pause" onclick="vacuumPressed('pause')" disabled>Пауза</button></td>
+        <td><button id="vacuum-stop" onclick="vacuumPressed('stop')" disabled>Стоп</button></td>
+        <td><button id="vacuum-return_to_base" onclick="vacuumPressed('return_to_base')" disabled>На базу</button></td>
+      </tr></table>
+      <div id="vacuum-message" aria-live="polite"></div>
+    </div>
     <div id="message">Ожидание данных</div>
     <div id="updated">Данные ещё не обновлялись</div>
     <div class="project-version">E-Ink Panel v__PROJECT_VERSION_HTML__</div>
@@ -305,6 +326,10 @@
     var lockLabel = __LOCK_LABEL_JSON__;
     var commandPending = false;
     var lockAction = "unavailable";
+    var vacuumPending = false;
+    var vacuumLoading = false;
+    var vacuumRevision = 0;
+    var vacuumActions = [];
 
     function setText(id, value) {
       var element = document.getElementById(id);
@@ -347,15 +372,84 @@
       }
     }
 
-    function request(method, path, callback) {
+    function request(method, path, callback, query) {
       var xhr = new XMLHttpRequest();
-      xhr.open(method, path + "?key=" + encodeURIComponent(panelKey), true);
+      xhr.open(method, path + "?key=" + encodeURIComponent(panelKey) + (query || ""), true);
+      var completed = false;
+      function finish(status, text) {
+        if (completed) { return; }
+        completed = true;
+        clearTimeout(timer);
+        callback(status, text);
+      }
+      var timer = setTimeout(function () {
+        finish(0, "");
+        xhr.abort();
+      }, 30000);
       xhr.onreadystatechange = function () {
         if (xhr.readyState === 4) {
-          callback(xhr.status, xhr.responseText);
+          finish(xhr.status, xhr.responseText);
         }
       };
       xhr.send(null);
+    }
+
+    function updateVacuumButtons() {
+      var actions = ["start", "pause", "stop", "return_to_base"];
+      var i, j, supported;
+      for (i = 0; i < actions.length; i++) {
+        supported = false;
+        for (j = 0; j < vacuumActions.length; j++) {
+          if (vacuumActions[j] === actions[i]) { supported = true; }
+        }
+        document.getElementById("vacuum-" + actions[i]).disabled = vacuumPending || !supported;
+      }
+    }
+
+    function loadVacuum() {
+      if (vacuumLoading || vacuumPending) { return; }
+      vacuumLoading = true;
+      var revision = vacuumRevision;
+      request("GET", "/eink-panel/vacuum", function (status, text) {
+        vacuumLoading = false;
+        if (revision !== vacuumRevision) { return; }
+        try {
+          if (status !== 200) { throw new Error("connection"); }
+          var data = JSON.parse(text);
+          document.getElementById("vacuum-panel").style.display = data.configured ? "block" : "none";
+          vacuumActions = data.available ? data.actions : [];
+          setText("vacuum-status", data.label);
+        } catch (error) {
+          vacuumActions = [];
+          setText("vacuum-status", "Нет связи");
+        }
+        updateVacuumButtons();
+        fitPage();
+      });
+    }
+
+    function vacuumPressed(action) {
+      var button = document.getElementById("vacuum-" + action);
+      if (vacuumPending || !button || button.disabled) { return; }
+      vacuumPending = true;
+      vacuumRevision++;
+      updateVacuumButtons();
+      setText("vacuum-message", "Отправка команды...");
+      request("POST", "/eink-panel/vacuum", function (status, text) {
+        var message = status === 200 ? "Команда отправлена" :
+          status === 0 ? "Нет ответа. Проверьте состояние пылесоса" : "Ошибка управления";
+        try {
+          var data = JSON.parse(text);
+          if (data.message) { message = data.message; }
+        } catch (error) {}
+        setText("vacuum-message", message);
+        setTimeout(function () {
+          vacuumPending = false;
+          vacuumActions = [];
+          updateVacuumButtons();
+          loadVacuum();
+        }, 1500);
+      }, "&action=" + encodeURIComponent(action));
     }
 
     function showForecast(items) {
@@ -489,10 +583,12 @@
 
     updateDate();
     loadStatus();
+    loadVacuum();
     setTimeout(fitPage, 50);
     window.onresize = fitPage;
     setInterval(updateDate, 60000);
     setInterval(loadStatus, 300000);
+    setInterval(loadVacuum, 15000);
 
     /* Reloading periodically helps clear accumulated E-Ink ghosting. */
     setTimeout(function () { window.location.reload(true); }, 1800000);
