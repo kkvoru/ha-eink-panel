@@ -1,12 +1,16 @@
 {
   "domain": "eink_panel",
   "name": "E-Ink Panel",
-  "codeowners": ["@kkvoru"],
-  "dependencies": ["http"],
+  "codeowners": [
+    "@kkvoru"
+  ],
+  "dependencies": [
+    "http"
+  ],
   "documentation": "https://github.com/kkvoru/ha-eink-panel",
   "issue_tracker": "https://github.com/kkvoru/ha-eink-panel/issues",
   "integration_type": "service",
   "iot_class": "local_push",
   "requirements": [],
-  "version": "0.5.1"
+  "version": "0.5.2"
 }
