@@ -1,0 +1,7 @@
+eink_panel:
+  access_key: "REPLACE_WITH_A_LONG_RANDOM_KEY"
+  weather_entity: weather.your_weather
+  temperature_entity: sensor.room_temperature
+  humidity_entity: sensor.room_humidity
+  lock_entity: lock.your_lock
+  lock_label: "Домофон"

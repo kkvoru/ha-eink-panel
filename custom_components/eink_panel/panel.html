@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>E-Ink Home</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #fff;
+      color: #000;
+      font-family: Arial, sans-serif;
+    }
+    body { text-align: center; }
+    .page { padding: 5px 14px; }
+    #date {
+      font-size: 22px;
+      font-weight: bold;
+      margin: 1px 0 5px 0;
+    }
+    .line {
+      border-top: 2px solid #000;
+      margin: 5px 0;
+    }
+    .weather-main {
+      width: 100%;
+      text-align: left;
+      white-space: nowrap;
+    }
+    .weather-icon {
+      display: inline-block;
+      width: 23%;
+      vertical-align: middle;
+      text-align: center;
+    }
+    .weather-icon img {
+      width: 82px;
+      height: 82px;
+    }
+    .weather-condition-block {
+      display: inline-block;
+      width: 43%;
+      vertical-align: middle;
+      white-space: normal;
+    }
+    #weather-condition {
+      font-size: 29px;
+      font-weight: bold;
+    }
+    .weather-temp-block {
+      display: inline-block;
+      width: 31%;
+      vertical-align: middle;
+      text-align: right;
+    }
+    #weather-temp {
+      font-size: 47px;
+      font-weight: bold;
+    }
+    #weather-range {
+      margin-top: 2px;
+      font-size: 18px;
+      color: #555;
+    }
+    .wind-row {
+      display: table;
+      width: 100%;
+      margin: 2px 0 5px 0;
+      font-size: 19px;
+      text-align: left;
+    }
+    .wind-symbol {
+      display: table-cell;
+      width: 10%;
+      font-size: 28px;
+      font-weight: bold;
+      vertical-align: middle;
+    }
+    .wind-label {
+      display: table-cell;
+      width: 35%;
+      vertical-align: middle;
+    }
+    #weather-wind {
+      display: table-cell;
+      width: 52%;
+      text-align: right;
+      vertical-align: middle;
+    }
+    .forecast-title {
+      margin: 2px 0;
+      font-size: 21px;
+      font-weight: bold;
+      text-align: left;
+    }
+    .forecast-table {
+      width: 100%;
+      table-layout: fixed;
+      border-collapse: collapse;
+      margin-top: 0;
+    }
+    .forecast-table td {
+      padding: 1px;
+      vertical-align: top;
+      font-size: 17px;
+    }
+    .forecast-day { min-height: 17px; font-size: 15px; }
+    .forecast-time { color: #555; }
+    .forecast-temp { font-weight: bold; font-size: 22px; margin: 1px 0; }
+    .forecast-icon {
+      display: block;
+      width: 46px;
+      height: 46px;
+      margin: 2px auto;
+    }
+    .attribution {
+      margin: 2px 0 3px 0;
+      font-size: 13px;
+      color: #555;
+    }
+    .indoor-title {
+      font-size: 22px;
+      font-weight: bold;
+      margin-top: 2px;
+    }
+    .sensor {
+      display: inline-block;
+      width: 47%;
+      margin-top: 1px;
+    }
+    .sensor-label { font-size: 17px; }
+    .sensor-value { font-size: 34px; font-weight: bold; }
+    .lock-row {
+      display: table;
+      width: 100%;
+      margin-top: 3px;
+    }
+    .lock-title {
+      display: table-cell;
+      width: 45%;
+      vertical-align: middle;
+      text-align: left;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .lock-control {
+      display: table-cell;
+      width: 55%;
+      vertical-align: middle;
+      text-align: right;
+    }
+    #lock-toggle {
+      padding: 2px;
+      border: 0;
+      background: #fff;
+      color: #000;
+      font-size: 19px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    .toggle-track {
+      position: relative;
+      display: inline-block;
+      width: 76px;
+      height: 36px;
+      border: 3px solid #000;
+      border-radius: 22px;
+      background: #fff;
+      vertical-align: middle;
+    }
+    .toggle-knob {
+      position: absolute;
+      display: block;
+      left: 4px;
+      top: 4px;
+      width: 28px;
+      height: 28px;
+      border-radius: 16px;
+      background: #000;
+    }
+    #lock-toggle.open .toggle-track { background: #aaa; }
+    #lock-toggle.open .toggle-knob { left: 44px; }
+    #lock-toggle.armed .toggle-track { background: #000; }
+    #lock-toggle.armed .toggle-knob { background: #fff; }
+    #lock-toggle.unavailable { color: #777; }
+    #lock-toggle-text {
+      display: inline-block;
+      min-width: 92px;
+      margin-left: 7px;
+      text-align: left;
+      vertical-align: middle;
+    }
+    #message {
+      min-height: 17px;
+      margin-top: 2px;
+      font-size: 15px;
+      font-weight: bold;
+    }
+    #updated { margin-top: 1px; font-size: 12px; }
+    .error { border: 4px solid #000; padding: 8px; }
+  </style>
+</head>
+<body>
+  <div class="page" id="page">
+    <div id="date">Загрузка...</div>
+
+    <div class="line"></div>
+
+    <div class="weather-main">
+      <div class="weather-icon"><img id="weather-icon" alt="Погода"></div>
+      <div class="weather-condition-block">
+        <div id="weather-condition">Получение погоды...</div>
+      </div>
+      <div class="weather-temp-block">
+        <div id="weather-temp">—°</div>
+        <div id="weather-range">—</div>
+      </div>
+    </div>
+
+    <div class="wind-row">
+      <span class="wind-symbol">≋</span>
+      <span class="wind-label">Ветер</span>
+      <span id="weather-wind">—</span>
+    </div>
+
+    <div class="forecast-title">Прогноз:</div>
+    <table class="forecast-table">
+      <tr>
+        <td>
+          <div class="forecast-day" id="f0-day"></div>
+          <div class="forecast-time" id="f0-time">--:--</div>
+          <img class="forecast-icon" id="f0-icon" alt="">
+          <div class="forecast-temp" id="f0-temp">—</div>
+        </td>
+        <td>
+          <div class="forecast-day" id="f1-day"></div>
+          <div class="forecast-time" id="f1-time">--:--</div>
+          <img class="forecast-icon" id="f1-icon" alt="">
+          <div class="forecast-temp" id="f1-temp">—</div>
+        </td>
+        <td>
+          <div class="forecast-day" id="f2-day"></div>
+          <div class="forecast-time" id="f2-time">--:--</div>
+          <img class="forecast-icon" id="f2-icon" alt="">
+          <div class="forecast-temp" id="f2-temp">—</div>
+        </td>
+        <td>
+          <div class="forecast-day" id="f3-day"></div>
+          <div class="forecast-time" id="f3-time">--:--</div>
+          <img class="forecast-icon" id="f3-icon" alt="">
+          <div class="forecast-temp" id="f3-temp">—</div>
+        </td>
+        <td>
+          <div class="forecast-day" id="f4-day"></div>
+          <div class="forecast-time" id="f4-time">--:--</div>
+          <img class="forecast-icon" id="f4-icon" alt="">
+          <div class="forecast-temp" id="f4-temp">—</div>
+        </td>
+      </tr>
+    </table>
+    <div class="attribution">Данные предоставлены Яндекс Погодой</div>
+
+    <div class="indoor-title">Гостиная</div>
+    <div class="sensor">
+      <div class="sensor-label">Температура</div>
+      <div class="sensor-value" id="indoor-temp">—</div>
+    </div>
+    <div class="sensor">
+      <div class="sensor-label">Влажность</div>
+      <div class="sensor-value" id="indoor-humidity">—</div>
+    </div>
+
+    <div class="line"></div>
+
+    <div class="lock-row">
+      <div class="lock-title">__LOCK_LABEL_HTML__</div>
+      <div class="lock-control">
+        <button id="lock-toggle" class="unavailable" onclick="lockPressed()">
+          <span class="toggle-track"><span class="toggle-knob"></span></span>
+          <span id="lock-toggle-text">Получение состояния...</span>
+        </button>
+      </div>
+    </div>
+    <div id="message">Ожидание данных</div>
+    <div id="updated">Данные ещё не обновлялись</div>
+  </div>
+
+  <script>
+    var panelKey = __PANEL_KEY_JSON__;
+    var lockLabel = __LOCK_LABEL_JSON__;
+    var armedUntil = 0;
+    var armTimer = null;
+    var lockAction = "unavailable";
+
+    function setText(id, value) {
+      var element = document.getElementById(id);
+      if (typeof element.textContent !== "undefined") {
+        element.textContent = value;
+      } else {
+        element.innerText = value;
+      }
+    }
+
+    function pad(value) {
+      return value < 10 ? "0" + value : "" + value;
+    }
+
+    function updateDate() {
+      var now = new Date();
+      var months = [
+        "января", "февраля", "марта", "апреля", "мая", "июня",
+        "июля", "августа", "сентября", "октября", "ноября", "декабря"
+      ];
+      var weekdays = [
+        "воскресенье", "понедельник", "вторник", "среда",
+        "четверг", "пятница", "суббота"
+      ];
+      setText(
+        "date",
+        weekdays[now.getDay()] + ", " + now.getDate() + " " + months[now.getMonth()]
+      );
+    }
+
+    function fitPage() {
+      var page = document.getElementById("page");
+      var available =
+        window.innerHeight ||
+        document.documentElement.clientHeight ||
+        document.body.clientHeight;
+      page.style.zoom = "1";
+      if (available > 0 && page.scrollHeight > available) {
+        page.style.zoom = String((available - 2) / page.scrollHeight);
+      }
+    }
+
+    function request(method, path, callback) {
+      var xhr = new XMLHttpRequest();
+      xhr.open(method, path + "?key=" + encodeURIComponent(panelKey), true);
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+          callback(xhr.status, xhr.responseText);
+        }
+      };
+      xhr.send(null);
+    }
+
+    function showForecast(items) {
+      var i;
+      var item;
+      for (i = 0; i < 5; i++) {
+        item = items && items[i] ? items[i] : null;
+        if (item) {
+          setText("f" + i + "-day", item.day);
+          document.getElementById("f" + i + "-icon").src = weatherIconPath(
+            item.icon_slot,
+            item.code
+          );
+          setText("f" + i + "-time", item.time);
+          setText("f" + i + "-temp", item.temperature);
+        }
+      }
+    }
+
+    function weatherIconPath(slot, condition) {
+      return (
+        "/eink-panel/weather-icon/" + encodeURIComponent(slot) +
+        "?key=" + encodeURIComponent(panelKey) +
+        "&condition=" + encodeURIComponent(condition || "cloudy")
+      );
+    }
+
+    function normalToggleText() {
+      if (lockAction === "unlock") {
+        return "Закрыт";
+      }
+      if (lockAction === "lock") {
+        return "Открыт";
+      }
+      return "Недоступен";
+    }
+
+    function toggleStateClass(extra) {
+      var stateClass = "unavailable";
+      if (lockAction === "unlock") {
+        stateClass = "closed";
+      } else if (lockAction === "lock") {
+        stateClass = "open";
+      }
+      document.getElementById("lock-toggle").className =
+        extra ? stateClass + " " + extra : stateClass;
+    }
+
+    function loadStatus() {
+      request("GET", "/eink-panel/status", function (status, text) {
+        if (status !== 200) {
+          setText("message", "Нет связи с Home Assistant");
+          return;
+        }
+        try {
+          var data = JSON.parse(text);
+          setText("weather-temp", data.weather.temperature + data.weather.unit);
+          setText("weather-condition", data.weather.condition);
+          setText("weather-range", data.weather.range);
+          setText("weather-wind", data.weather.wind);
+          document.getElementById("weather-icon").src = weatherIconPath(
+            data.weather.icon_slot,
+            data.weather.code
+          );
+          setText(
+            "indoor-temp",
+            data.indoor.temperature.value + data.indoor.temperature.unit
+          );
+          setText(
+            "indoor-humidity",
+            data.indoor.humidity.value + data.indoor.humidity.unit
+          );
+          showForecast(data.forecast);
+          lockAction = data.lock.action;
+
+          var now = new Date();
+          setText("updated", "Обновлено в " + pad(now.getHours()) + ":" + pad(now.getMinutes()));
+          if (!data.lock.available) {
+            document.getElementById("lock-toggle").disabled = true;
+            toggleStateClass("");
+            setText("lock-toggle-text", "Недоступен");
+            setText("message", "Домофон недоступен");
+          } else if (armedUntil === 0) {
+            document.getElementById("lock-toggle").disabled = false;
+            toggleStateClass("");
+            setText("lock-toggle-text", normalToggleText());
+            setText(
+              "message",
+              lockAction === "unlock"
+                ? "Для открытия потребуется два нажатия"
+                : "Нажмите, чтобы закрыть"
+            );
+          }
+          setTimeout(fitPage, 50);
+        } catch (error) {
+          setText("message", "Ошибка данных");
+        }
+      });
+    }
+
+    function resetUnlock() {
+      armedUntil = 0;
+      toggleStateClass("");
+      setText("lock-toggle-text", normalToggleText());
+      setText(
+        "message",
+        lockAction === "unlock"
+          ? "Для открытия потребуется два нажатия"
+          : "Нажмите, чтобы закрыть"
+      );
+    }
+
+    function sendLockCommand() {
+      if (armTimer) {
+        clearTimeout(armTimer);
+      }
+      armedUntil = 0;
+      document.getElementById("lock-toggle").disabled = true;
+      toggleStateClass("busy");
+      setText(
+        "lock-toggle-text",
+        lockAction === "unlock" ? "Открываю..." : "Закрываю..."
+      );
+      setText("message", "Отправка команды");
+
+      request("POST", "/eink-panel/lock", function (status, text) {
+        var message = status === 200 ? "Команда отправлена" : "Ошибка управления";
+        try {
+          var data = JSON.parse(text);
+          if (data.message) {
+            message = data.message;
+          }
+        } catch (error) {}
+        setText("message", message);
+        setTimeout(loadStatus, 1500);
+      });
+    }
+
+    function lockPressed() {
+      if (lockAction === "unavailable") {
+        return;
+      }
+
+      if (lockAction === "lock") {
+        sendLockCommand();
+        return;
+      }
+
+      var now = new Date().getTime();
+      if (now > armedUntil) {
+        armedUntil = now + 5000;
+        toggleStateClass("armed");
+        setText("lock-toggle-text", "Ещё раз");
+        setText("message", "Подтверждение действует 5 секунд");
+        if (armTimer) {
+          clearTimeout(armTimer);
+        }
+        armTimer = setTimeout(resetUnlock, 5000);
+        return;
+      }
+      sendLockCommand();
+    }
+
+    updateDate();
+    loadStatus();
+    setTimeout(fitPage, 50);
+    window.onresize = fitPage;
+    setInterval(updateDate, 60000);
+    setInterval(loadStatus, 300000);
+
+    /* Reloading periodically helps clear accumulated E-Ink ghosting. */
+    setTimeout(function () { window.location.reload(true); }, 1800000);
+  </script>
+</body>
+</html>
