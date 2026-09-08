@@ -59,7 +59,12 @@ jobs:
           if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
               raise SystemExit(f"Unsupported version: {version}")
           if os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch":
-              major, minor, patch = map(int, version.split("."))
+              versions = [tuple(map(int, version.split(".")))]
+              tags = subprocess.check_output(["git", "tag", "--list", "v*"], text=True)
+              for existing_tag in tags.splitlines():
+                  if re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", existing_tag):
+                      versions.append(tuple(map(int, existing_tag[1:].split("."))))
+              major, minor, patch = max(versions)
               bump = os.environ["BUMP"]
               if bump == "patch":
                   patch += 1
@@ -78,17 +83,18 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"tag=v{version}\n")
           PY
-      - name: Commit and push version and tag
+      - name: Commit release version and push tag
         if: github.event_name == 'workflow_dispatch'
         env:
           TAG: ${{ steps.version.outputs.tag }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --detach
           git add custom_components/eink_panel/manifest.json
           git commit -m "Release $TAG"
           git tag "$TAG"
-          git push --atomic origin HEAD:refs/heads/main "refs/tags/$TAG"
+          git push origin "refs/tags/$TAG"
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
