@@ -191,13 +191,6 @@
     #lock-toggle.open .lock-open, #lock-toggle.closed .lock-closed { display: inline; }
     #lock-toggle.open .lock-unknown, #lock-toggle.closed .lock-unknown { display: none; }
     #lock-toggle.unavailable { color: #777; }
-    #lock-toggle-text {
-      display: inline-block;
-      min-width: 92px;
-      margin-left: 7px;
-      text-align: left;
-      vertical-align: middle;
-    }
     #message {
       min-height: 17px;
       margin-top: 2px;
@@ -210,7 +203,7 @@
       display: table-cell; vertical-align: middle; text-align: left;
       font-size: 24px; font-weight: bold;
     }
-    #vacuum-status { display: block; font-size: 15px; font-weight: normal; }
+    #lock-toggle-text, #vacuum-status { display: block; font-size: 15px; font-weight: normal; }
     .vacuum-buttons {
       display: table-cell; vertical-align: middle; text-align: right;
       white-space: nowrap;
@@ -298,9 +291,9 @@
     <div class="line"></div>
 
     <div class="lock-row">
-      <div class="lock-title">__LOCK_LABEL_HTML__</div>
+      <div class="lock-title" id="lock-heading">Домофон<span id="lock-toggle-text" aria-live="polite">Получение состояния...</span></div>
       <div class="lock-control">
-        <button id="lock-toggle" class="unavailable" onclick="lockPressed()" disabled>
+        <button id="lock-toggle" class="unavailable" onclick="lockPressed()" aria-labelledby="lock-heading" disabled>
           <svg class="lock-icon" viewBox="0 0 32 36" aria-hidden="true" focusable="false">
             <g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
               <g class="lock-closed"><path d="M9 16V10a7 7 0 0 1 14 0v6"/><rect x="5" y="16" width="22" height="17" rx="2"/><path d="M16 23v4"/></g>
@@ -309,7 +302,6 @@
             </g>
           </svg>
           <span class="toggle-track"><span class="toggle-knob"></span></span>
-          <span id="lock-toggle-text">Получение состояния...</span>
         </button>
       </div>
     </div>
