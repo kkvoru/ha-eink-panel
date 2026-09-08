@@ -72,7 +72,8 @@ class Preview(BaseHTTPRequestHandler):
                              for i, code in enumerate(("sunny", "partlycloudy", "cloudy", "rainy", "clear-night"))
                              for hour in [now + timedelta(hours=i + 1)]],
                 "indoor": {"temperature": {"value": "23.4", "unit": "°C"},
-                           "humidity": {"value": "46", "unit": "%"}},
+                           "humidity": {"value": "46", "unit": "%"},
+                           "co2": {"value": "850", "unit": "ppm"}},
                 "lock": {"state": "locked" if Preview.locked else "unlocked", "available": True,
                          "label": "Закрыт" if Preview.locked else "Открыт",
                          "action": "unlock" if Preview.locked else "lock"},

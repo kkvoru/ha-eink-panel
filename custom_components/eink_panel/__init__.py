@@ -30,6 +30,8 @@ CONF_ACCESS_KEY = "access_key"
 CONF_WEATHER_ENTITY = "weather_entity"
 CONF_TEMPERATURE_ENTITY = "temperature_entity"
 CONF_HUMIDITY_ENTITY = "humidity_entity"
+CONF_CO2_ENTITY = "co2_entity"
+DEFAULT_CO2_ENTITY = "sensor.kit_mt8057s_co2"
 CONF_LOCK_ENTITY = "lock_entity"
 CONF_LOCK_LABEL = "lock_label"
 CONF_VACUUM_ENTITY = "vacuum_entity"
@@ -79,6 +81,7 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Required(CONF_WEATHER_ENTITY): cv.entity_id,
                 vol.Required(CONF_TEMPERATURE_ENTITY): cv.entity_id,
                 vol.Required(CONF_HUMIDITY_ENTITY): cv.entity_id,
+                vol.Optional(CONF_CO2_ENTITY, default=DEFAULT_CO2_ENTITY): cv.entity_id,
                 vol.Required(CONF_LOCK_ENTITY): cv.entity_id,
                 vol.Optional(CONF_LOCK_LABEL, default="Открыть домофон"): cv.string,
                 vol.Optional(CONF_VACUUM_ENTITY): vol.All(
@@ -307,6 +310,7 @@ class PanelConfig:
         self.weather_entity = raw[CONF_WEATHER_ENTITY]
         self.temperature_entity = raw[CONF_TEMPERATURE_ENTITY]
         self.humidity_entity = raw[CONF_HUMIDITY_ENTITY]
+        self.co2_entity = raw.get(CONF_CO2_ENTITY, DEFAULT_CO2_ENTITY)
         self.lock_entity = raw[CONF_LOCK_ENTITY]
         self.lock_label = raw[CONF_LOCK_LABEL]
         self.vacuum_entity = raw.get(CONF_VACUUM_ENTITY)
@@ -422,6 +426,7 @@ class EInkStatusView(EInkBaseView):
         weather_state = self.hass.states.get(cfg.weather_entity)
         temperature_state = self.hass.states.get(cfg.temperature_entity)
         humidity_state = self.hass.states.get(cfg.humidity_entity)
+        co2_state = self.hass.states.get(cfg.co2_entity)
         lock_state = self.hass.states.get(cfg.lock_entity)
 
         current_weather: dict[str, str] = {
@@ -511,6 +516,7 @@ class EInkStatusView(EInkBaseView):
             "indoor": {
                 "temperature": _plain_value(temperature_state),
                 "humidity": _plain_value(humidity_state),
+                "co2": _plain_value(co2_state),
             },
             "lock": {
                 "state": lock_state.state if lock_state is not None else "unavailable",

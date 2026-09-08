@@ -125,11 +125,12 @@
     }
     .sensor {
       display: inline-block;
-      width: 47%;
+      width: 32%;
       margin-top: 1px;
     }
     .sensor-label { font-size: 17px; }
     .sensor-value { font-size: 34px; font-weight: bold; }
+    .sensor-unit { font-size: 17px; font-weight: normal; }
     .lock-row {
       display: table;
       width: 100%;
@@ -286,6 +287,10 @@
     <div class="sensor">
       <div class="sensor-label">Влажность</div>
       <div class="sensor-value" id="indoor-humidity">—</div>
+    </div>
+    <div class="sensor">
+      <div class="sensor-label">CO₂</div>
+      <div class="sensor-value"><span id="indoor-co2">—</span> <span class="sensor-unit" id="indoor-co2-unit"></span></div>
     </div>
 
     <div class="line"></div>
@@ -529,6 +534,9 @@
             "indoor-humidity",
             data.indoor.humidity.value + data.indoor.humidity.unit
           );
+          var co2 = data.indoor.co2 || {value: "—", unit: ""};
+          setText("indoor-co2", co2.value);
+          setText("indoor-co2-unit", co2.unit);
           showForecast(data.forecast);
           var now = new Date();
           setText("updated", "Обновлено в " + pad(now.getHours()) + ":" + pad(now.getMinutes()));
