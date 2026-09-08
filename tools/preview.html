@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Локальный предпросмотр E-Ink Panel</title>
+<style>
+  body { margin: 0; background: #e8e8e8; color: #222; font: 15px Arial, sans-serif; }
+  header { padding: 16px 24px; background: white; border-bottom: 1px solid #ccc; }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  p { margin: 8px 0; }
+  input { width: 72px; padding: 5px; }
+  button, a { margin-left: 10px; }
+  button { padding: 6px 12px; cursor: pointer; }
+  main { padding: 24px; overflow: auto; }
+  iframe { display: block; background: white; border: 0; box-shadow: 0 2px 12px #0003; margin: auto; }
+</style>
+<header>
+  <h1>Локальный предпросмотр E-Ink Panel</h1>
+  <p>Демонстрационные данные. Кнопки управляют только макетом. Изменения HTML обновляются автоматически.</p>
+  <label>Ширина <input id="width" type="number" min="240" max="3000" value="540"></label>
+  <label>Высота <input id="height" type="number" min="240" max="3000" value="720"></label>
+  <button id="reload">Обновить</button>
+  <a href="/eink-panel" target="_blank">Открыть панель целиком</a>
+  <p id="status">Размер в CSS-пикселях: укажите размер области браузера электронной книги.</p>
+</header>
+<main><iframe id="panel" title="E-Ink Panel" src="/eink-panel" width="540" height="720"></iframe></main>
+<script>
+  const panel = document.getElementById('panel');
+  for (const dimension of ['width', 'height']) {
+    document.getElementById(dimension).addEventListener('input', event => {
+      if (event.target.validity.valid && event.target.value) panel[dimension] = event.target.value;
+    });
+  }
+  function reload() { panel.contentWindow.location.reload(); }
+  document.getElementById('reload').onclick = reload;
+  let version;
+  setInterval(async () => {
+    try {
+      const response = await fetch('/preview-version', {cache: 'no-store'});
+      if (!response.ok) throw new Error('offline');
+      const data = await response.json();
+      if (version && version !== data.version) reload();
+      version = data.version;
+      document.getElementById('status').textContent = 'Автообновление включено · размер в CSS-пикселях';
+    } catch (_) {
+      document.getElementById('status').textContent = 'Сервер остановлен. Запустите python tools/preview.py';
+    }
+  }, 1000);
+</script>
+</html>
